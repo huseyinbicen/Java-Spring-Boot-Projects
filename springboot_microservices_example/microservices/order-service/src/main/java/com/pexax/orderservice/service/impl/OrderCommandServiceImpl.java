@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.MissingRequestValueException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -27,7 +26,7 @@ public class OrderCommandServiceImpl implements OrderCommandService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     @Override
-    public void placeOrder(OrderRequest request) {
+    public String placeOrder(OrderRequest request) {
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
 
@@ -47,10 +46,11 @@ public class OrderCommandServiceImpl implements OrderCommandService {
                 .bodyToMono(InventoryResponse[].class)
                 .block();
 
-        boolean allProductInStock = Arrays.stream(inventoryResponses).allMatch(InventoryResponse::isInStock);
+        boolean allProductInStock = Arrays.stream(inventoryResponses != null ? inventoryResponses : new InventoryResponse[0]).allMatch(InventoryResponse::isInStock);
 
         if (allProductInStock) {
             orderRepository.save(order);
+            return "Order Placed Successfully";
         } else {
             throw new ErrorResponseException(HttpStatus.NOT_FOUND);
         }

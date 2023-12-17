@@ -4,5 +4,5 @@ import com.pexax.orderservice.dto.request.OrderRequest;
 
 public interface OrderCommandService {
 
-    void placeOrder (OrderRequest request);
+    String placeOrder (OrderRequest request);
 }
