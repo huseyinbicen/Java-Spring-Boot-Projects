@@ -6,7 +6,8 @@
 *     Inventory service = http://localhost:8082/swagger-ui/index.html
 
 ### Eureka
-*     Eureka Server     = http://localhost:8761/
+*     Eureka Server     = http://localhost:8761/ 
+  *     Username = eureka / Password = password
 *     From API Gateway  = http://localhost:8080/eureka/web
 
 ### API Gateway
