@@ -7,6 +7,8 @@ import com.pexax.orderservice.model.Order;
 import com.pexax.orderservice.model.OrderLineItem;
 import com.pexax.orderservice.repository.OrderRepository;
 import com.pexax.orderservice.service.OrderCommandService;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ public class OrderCommandServiceImpl implements OrderCommandService {
 
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final Tracer tracer;
     @Override
     public String placeOrder(OrderRequest request) {
         Order order = new Order();
@@ -39,20 +42,26 @@ public class OrderCommandServiceImpl implements OrderCommandService {
 
         List<String> skuCodes = order.getOrderLineItems().stream().map(OrderLineItem::getSkuCode).toList();
 
-        InventoryResponse[] inventoryResponses = webClientBuilder.build().get()
-                .uri("http://inventory-service/api/inventory",
-                        uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodes).build())
-                .retrieve()
-                .bodyToMono(InventoryResponse[].class)
-                .block();
+        Span inventoryServiceLoopUp = tracer.nextSpan().name("inventoryServiceLoopUp");
 
-        boolean allProductInStock = Arrays.stream(inventoryResponses != null ? inventoryResponses : new InventoryResponse[0]).allMatch(InventoryResponse::isInStock);
+        try(Tracer.SpanInScope spanInScope = tracer.withSpan(inventoryServiceLoopUp.start())) {
+            InventoryResponse[] inventoryResponses = webClientBuilder.build().get()
+                    .uri("http://inventory-service/api/inventory",
+                            uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodes).build())
+                    .retrieve()
+                    .bodyToMono(InventoryResponse[].class)
+                    .block();
 
-        if (allProductInStock) {
-            orderRepository.save(order);
-            return "Order Placed Successfully";
-        } else {
-            throw new ErrorResponseException(HttpStatus.NOT_FOUND);
+            boolean allProductInStock = Arrays.stream(inventoryResponses != null ? inventoryResponses : new InventoryResponse[0]).allMatch(InventoryResponse::isInStock);
+
+            if (allProductInStock) {
+                orderRepository.save(order);
+                return "Order Placed Successfully";
+            } else {
+                throw new ErrorResponseException(HttpStatus.NOT_FOUND);
+            }
+        } finally {
+            inventoryServiceLoopUp.end();
         }
     }
 

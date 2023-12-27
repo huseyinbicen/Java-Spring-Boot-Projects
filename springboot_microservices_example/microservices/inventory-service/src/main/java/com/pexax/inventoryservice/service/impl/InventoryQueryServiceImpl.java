@@ -19,11 +19,11 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
     private final InventoryRepository inventoryRepository;
     @Override
     public List<InventoryResponse> isInStocks(List<String> skuCodes) {
-        try {
-            testTimeout();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            testTimeout();
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
         return inventoryRepository.findBySkuCodeIn(skuCodes)
                 .stream()
                 .map(x -> InventoryResponse.builder()
